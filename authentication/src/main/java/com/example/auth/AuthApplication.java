@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authorization.EnableMultiFactorAuthentication;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
@@ -73,6 +74,7 @@ public class AuthApplication {
                         })
                 )
                 .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+                .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
 
