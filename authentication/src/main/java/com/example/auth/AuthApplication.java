@@ -78,7 +78,10 @@ public class AuthApplication {
                                     "/login/ott?token=" + oneTimeToken.getTokenValue());
                         })
                 )
-                .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+                .authorizeHttpRequests(a -> a
+                    .requestMatchers("/userinfo", "/oauth2/token").access(authenticated())
+                    .anyRequest().authenticated()
+                )
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
