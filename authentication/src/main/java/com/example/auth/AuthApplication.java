@@ -11,16 +11,17 @@ import org.springframework.security.config.annotation.authorization.EnableMultiF
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.StandardPasswordEncoder;
 import org.springframework.security.crypto.password4j.Argon2Password4jPasswordEncoder;
-import org.springframework.security.provisioning.JdbcUserDetailsManager;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
-import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -79,11 +80,18 @@ public class AuthApplication {
     }
 
     @Bean
+    InMemoryUserDetailsManager userDetailsManager(PasswordEncoder passwordEncoder) {
+        return new InMemoryUserDetailsManager(
+                User.withUsername("josh").password(passwordEncoder.encode("pw")).roles("USER").build() ,
+                User.withUsername("rob").password(passwordEncoder.encode("pw")).roles("USER").build()
+        );
+    }
+/*    @Bean
     JdbcUserDetailsManager jdbcUserDetailsManager(DataSource dataSource) {
         var users = new JdbcUserDetailsManager(dataSource);
         users.setEnableUpdatePassword(true);
         return users;
-    }
+    }*/
 
 }
 /*
