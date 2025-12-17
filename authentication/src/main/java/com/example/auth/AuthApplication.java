@@ -7,7 +7,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authorization.EnableMultiFactorAuthentication;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -17,8 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.StandardPasswordEncoder;
 import org.springframework.security.crypto.password4j.Argon2Password4jPasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 
+import javax.sql.DataSource;
 import java.util.HashMap;
 
 import static org.springframework.security.authorization.AuthenticatedAuthorizationManager.authenticated;
@@ -47,10 +47,8 @@ public class AuthApplication {
     }
 
     @Bean
-    SecurityFilterChain httpSecurityCustomizer(HttpSecurity http) {
-        return http
-                .oauth2AuthorizationServer(a -> a.oidc(Customizer.withDefaults()))
-                .formLogin(Customizer.withDefaults())
+    Customizer<HttpSecurity> httpSecurityCustomizer() {
+        return http -> http
                 .webAuthn(a -> a
                         .rpName("bootiful")
                         .rpId("localhost")
@@ -66,13 +64,9 @@ public class AuthApplication {
                 )
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/userinfo", "/oauth2/token").access(authenticated())
-                        .anyRequest().authenticated()
-                )
-                .csrf(AbstractHttpConfigurer::disable)
-                .build();
-
+                );
     }
-
+/*
     @Bean
     InMemoryUserDetailsManager userDetailsManager(PasswordEncoder passwordEncoder) {
         return new InMemoryUserDetailsManager(
@@ -80,12 +74,14 @@ public class AuthApplication {
                 User.withUsername("rob").password(passwordEncoder.encode("pw")).roles("USER").build()
         );
     }
-/*    @Bean
+*/
+
+    @Bean
     JdbcUserDetailsManager jdbcUserDetailsManager(DataSource dataSource) {
         var users = new JdbcUserDetailsManager(dataSource);
         users.setEnableUpdatePassword(true);
         return users;
-    }*/
+    }
 
 }
 /*
