@@ -2,9 +2,7 @@ package com.example.auth;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.web.server.context.WebServerInitializedEvent;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authorization.EnableMultiFactorAuthentication;
@@ -13,7 +11,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,7 +20,8 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.springframework.security.authorization.AuthenticatedAuthorizationManager.authenticated;
 
 @EnableMultiFactorAuthentication(authorities = {
         FactorGrantedAuthority.PASSWORD_AUTHORITY,
@@ -34,13 +32,6 @@ public class AuthApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AuthApplication.class, args);
-    }
-
-    private final AtomicInteger port = new AtomicInteger(0);
-
-    @EventListener
-    void on(WebServerInitializedEvent serverInitializedEvent) {
-        this.port.set(serverInitializedEvent.getWebServer().getPort());
     }
 
     @Bean
@@ -66,23 +57,26 @@ public class AuthApplication {
                         .allowedOrigins("http://localhost:9090")
                 )
                 .oneTimeTokenLogin(ott -> ott
-                        .tokenGenerationSuccessHandler((_, response, oneTimeToken) -> {
-
+                        .tokenGenerationSuccessHandler((request, response, oneTimeToken) -> {
                             response.getWriter().println("you've got console mail!");
                             response.setContentType(MediaType.TEXT_PLAIN_VALUE);
-                            IO.println("please go to http://localhost:" + this.port.get() +
+                            IO.println("please go to http://localhost:" + request.getServerPort() +
                                     "/login/ott?token=" + oneTimeToken.getTokenValue());
                         })
                 )
-                .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+                .authorizeHttpRequests(a -> a
+                        .requestMatchers("/userinfo", "/oauth2/token").access(authenticated())
+                        .anyRequest().authenticated()
+                )
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
+
     }
 
     @Bean
     InMemoryUserDetailsManager userDetailsManager(PasswordEncoder passwordEncoder) {
         return new InMemoryUserDetailsManager(
-                User.withUsername("josh").password(passwordEncoder.encode("pw")).roles("USER").build() ,
+                User.withUsername("josh").password(passwordEncoder.encode("pw")).roles("USER").build(),
                 User.withUsername("rob").password(passwordEncoder.encode("pw")).roles("USER").build()
         );
     }

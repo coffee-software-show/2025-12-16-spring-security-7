@@ -1,9 +1,9 @@
 
 spring:
-  datasource:
-    password: secret
-    username: myuser
-    url: jdbc:postgresql://localhost/mydatabase
+#  datasource:
+#    password: secret
+#    username: myuser
+#    url: jdbc:postgresql://localhost/mydatabase
   security:
     oauth2:
       authorizationserver:
