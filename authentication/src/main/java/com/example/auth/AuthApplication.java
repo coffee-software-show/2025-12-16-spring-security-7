@@ -4,34 +4,60 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authorization.AuthorizationManagerFactories;
+import org.springframework.security.authorization.AuthorizationManagerFactory;
+import org.springframework.security.authorization.DefaultAuthorizationManagerFactory;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authorization.EnableMultiFactorAuthentication;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.StandardPasswordEncoder;
 import org.springframework.security.crypto.password4j.Argon2Password4jPasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.JdbcUserDetailsManager;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.sql.DataSource;
+import java.security.Principal;
 import java.util.HashMap;
+import java.util.Map;
 
 import static org.springframework.security.authorization.AuthenticatedAuthorizationManager.authenticated;
 
-@EnableMultiFactorAuthentication(authorities = {
+
+/**
+ * 1.0 EnableMFA with two authorities
+ * 2.0 but if u wanna deviate, u have two options.
+ * 2.1 let's say u want the default to be NON-MFA. say, only /admin.
+ * in this case enable MFA with an empty annotation. then configure a AMF as a variable passed to access(AMF).
+ * 2.2 u might want MFA for everything but might want to override and make it even more demanding in certain spots.
+ * U can use the annotation and then for certain access endpoints, u can pass an AMF with, say, a duration.
+ * 3.0 remember that the AMF can also be used for all sorts of other cool usecases. u can talk to some external service via the AMF.
+ */
+
+/*@EnableMultiFactorAuthentication(authorities = {
         FactorGrantedAuthority.PASSWORD_AUTHORITY,
         FactorGrantedAuthority.OTT_AUTHORITY
-})
+})*/
+@EnableMultiFactorAuthentication(authorities = {})
 @SpringBootApplication
 public class AuthApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AuthApplication.class, args);
+    }
+
+    @Bean
+    DefaultAuthorizationManagerFactory<Object> myAMF() {
+        var builder = AuthorizationManagerFactories
+                .multiFactor()
+                .requireFactors(FactorGrantedAuthority.PASSWORD_AUTHORITY, FactorGrantedAuthority.OTT_AUTHORITY);
+        return builder.build();
     }
 
     @Bean
@@ -47,8 +73,25 @@ public class AuthApplication {
     }
 
     @Bean
-    Customizer<HttpSecurity> httpSecurityCustomizer() {
+    Customizer<HttpSecurity> httpSecurityCustomizer(AuthorizationManagerFactory<Object> implicit) {
+
+        var whatever = AuthorizationManagerFactories
+                .multiFactor()
+//                .requireFactors( b -> b
+//                        .requireFactor( bb -> bb.ottAuthority().validDuration(Duration.ofMinutes(1)).build())
+//                        .requireFactor( bb -> bb.passwordAuthority().build())
+//                )
+//                .requireFactor(factor -> factor.ottAuthority( otta -> otta.duration()))
+                .requireFactor(fact -> fact.passwordAuthority().build())
+                .build();
+        var admin = AuthorizationManagerFactories
+                .multiFactor()
+                .requireFactors(FactorGrantedAuthority.OTT_AUTHORITY, FactorGrantedAuthority.PASSWORD_AUTHORITY)
+                .build();
+        var everybodyElse = new DefaultAuthorizationManagerFactory<>();
+
         return http -> http
+
                 .webAuthn(a -> a
                         .rpName("bootiful")
                         .rpId("localhost")
@@ -63,18 +106,13 @@ public class AuthApplication {
                         })
                 )
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/userinfo", "/oauth2/token").access(authenticated())
+                                .requestMatchers("/userinfo", "/oauth2/token").access(authenticated())
+                                .requestMatchers("/user").access(everybodyElse.authenticated())
+                                .requestMatchers("/admin").authenticated() // equivalent to access(implicitAMFBean.authenticated()), so no need for admin MFA anymore!
+//                                .requestMatchers("/admin").access(implicit.authenticated()) // equivalent to access(implicitAMFBean.authenticated()), so no need for admin MFA anymore!
+//                        .requestMatchers("/admin").access(admin.authenticated())
                 );
     }
-/*
-    @Bean
-    InMemoryUserDetailsManager userDetailsManager(PasswordEncoder passwordEncoder) {
-        return new InMemoryUserDetailsManager(
-                User.withUsername("josh").password(passwordEncoder.encode("pw")).roles("USER").build(),
-                User.withUsername("rob").password(passwordEncoder.encode("pw")).roles("USER").build()
-        );
-    }
-*/
 
     @Bean
     JdbcUserDetailsManager jdbcUserDetailsManager(DataSource dataSource) {
@@ -84,7 +122,6 @@ public class AuthApplication {
     }
 
 }
-/*
 
 @Controller
 @ResponseBody
@@ -103,4 +140,4 @@ class GreetingsController {
     private Map<String, String> response(Principal authentication) {
         return Map.of("message", "hello, " + authentication.getName());
     }
-}*/
+}
