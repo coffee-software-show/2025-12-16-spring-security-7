@@ -7,8 +7,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authorization.EnableMultiFactorAuthentication;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
@@ -22,10 +23,10 @@ import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-//@EnableMultiFactorAuthentication( authorities = {
-//        FactorGrantedAuthority.OTT_AUTHORITY ,
-//        FactorGrantedAuthority.PASSWORD_AUTHORITY
-//})
+@EnableMultiFactorAuthentication(authorities = {
+        FactorGrantedAuthority.PASSWORD_AUTHORITY,
+        FactorGrantedAuthority.OTT_AUTHORITY
+})
 @SpringBootApplication
 public class AuthApplication {
 
@@ -53,9 +54,10 @@ public class AuthApplication {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    SecurityFilterChain httpSecurityCustomizer(HttpSecurity http) {
         return http
                 .oauth2AuthorizationServer(a -> a.oidc(Customizer.withDefaults()))
+                .formLogin(Customizer.withDefaults())
                 .webAuthn(a -> a
                         .rpName("bootiful")
                         .rpId("localhost")
@@ -66,14 +68,10 @@ public class AuthApplication {
 
                             response.getWriter().println("you've got console mail!");
                             response.setContentType(MediaType.TEXT_PLAIN_VALUE);
-
                             IO.println("please go to http://localhost:" + this.port.get() +
-                                    "/login/ott?token=" +
-                                    oneTimeToken.getTokenValue());
+                                    "/login/ott?token=" + oneTimeToken.getTokenValue());
                         })
                 )
-                .httpBasic(Customizer.withDefaults())
-                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(a -> a.anyRequest().authenticated())
                 .build();
     }

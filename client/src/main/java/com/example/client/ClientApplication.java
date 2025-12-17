@@ -4,10 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.security.authorization.AuthorizationManagerFactories;
-import org.springframework.security.authorization.RequiredFactor;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.authorization.EnableMultiFactorAuthentication;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
 import org.springframework.stereotype.Controller;
@@ -15,8 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
 import java.util.Map;
+
 
 @SpringBootApplication
 public class ClientApplication {
@@ -25,6 +23,7 @@ public class ClientApplication {
         SpringApplication.run(ClientApplication.class, args);
     }
 
+   /*
     @Bean
     Customizer<HttpSecurity> httpServerCustomizer() {
         var tenMinutes = Duration.ofMinutes(15);
@@ -40,8 +39,8 @@ public class ClientApplication {
                         .requestMatchers("/admin").access(mfa.hasRole("ADMIN"))
                         .requestMatchers("/user").authenticated()
                 );
-
     }
+    */
 
     @Bean
     RestClient restClient(RestClient.Builder builder) {
@@ -59,25 +58,16 @@ class ClientController {
         this.http = http;
     }
 
-    @GetMapping("/admin")
-    Map<String, String> admin(@RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient client) {
-        return this.request(client, "admin");
-    }
-
-    @GetMapping("/user")
-    Map<String, String> client(@RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient client) {
-        return this.request(client, "user");
-    }
-
-    private Map<String, String> request(OAuth2AuthorizedClient client, String suffix) {
+    @GetMapping("/")
+    Map<String, String> hello(@RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient client) {
         var at = client.getAccessToken();
         return this.http
                 .get()
-                .uri("http://localhost:8080/" + suffix)
+                .uri("http://localhost:8080")
                 .headers(headers -> headers.setBearerAuth(at.getTokenValue()))
                 .retrieve()
-                .body(new ParameterizedTypeReference<>() {});
+                .body(new ParameterizedTypeReference<>() {
+                });
     }
-
 
 }

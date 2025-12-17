@@ -22,16 +22,7 @@ public class ServiceApplication {
 @ResponseBody
 class GreetingsController {
 
-	@GetMapping("/user")
-	Map<String, String> user(Principal principal) {
-		return this.response(principal);
-	}
-
-	@GetMapping("/admin")
-	Map<String, String> admin(Principal principal) {
-		return this.response(principal);
-	}
-
+	@GetMapping("/")
 	private Map<String, String> response(Principal authentication) {
 		return Map.of("message", "hello, " + authentication.getName());
 	}
