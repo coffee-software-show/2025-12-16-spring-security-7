@@ -1,9 +1,17 @@
 package com.example.auth;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.ott.OneTimeTokenAuthentication;
 import org.springframework.security.authorization.AuthorizationManagerFactories;
 import org.springframework.security.authorization.AuthorizationManagerFactory;
 import org.springframework.security.authorization.DefaultAuthorizationManagerFactory;
@@ -17,6 +25,8 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.StandardPasswordEncoder;
 import org.springframework.security.crypto.password4j.Argon2Password4jPasswordEncoder;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
 import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +36,7 @@ import javax.sql.DataSource;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.springframework.security.authorization.AuthenticatedAuthorizationManager.authenticated;
 
@@ -46,7 +57,22 @@ import static org.springframework.security.authorization.AuthenticatedAuthorizat
 })*/
 @EnableMultiFactorAuthentication(authorities = {})
 @SpringBootApplication
+@ImportRuntimeHints(AuthApplication.Hints.class)
 public class AuthApplication {
+
+    static class Hints implements RuntimeHintsRegistrar {
+
+        @Override
+        public void registerHints(@NonNull RuntimeHints hints, @Nullable ClassLoader classLoader) {
+            for (var clzz : Set.of(
+                    OneTimeTokenAuthentication.class,
+                    UsernamePasswordAuthenticationToken.class,
+                    OAuth2AuthorizationCodeRequestAuthenticationProvider.class,
+                    OAuth2AuthorizationEndpointFilter.class)
+            )
+                hints.reflection().registerType(clzz, MemberCategory.values());
+        }
+    }
 
     public static void main(String[] args) {
         SpringApplication.run(AuthApplication.class, args);
@@ -91,7 +117,6 @@ public class AuthApplication {
         var everybodyElse = new DefaultAuthorizationManagerFactory<>();
 
         return http -> http
-
                 .webAuthn(a -> a
                         .rpName("bootiful")
                         .rpId("localhost")
